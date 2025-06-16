@@ -3,8 +3,8 @@ import math
 from enum import Enum
 
 LONG_SECTION_LENGTH = 34.2
-SHORT_SECTION_LENGTH = 11.0
-TURN_RADIUS = 15.0
+SHORT_SECTION_LENGTH = 11.4
+TURN_RADIUS = 17.0
 
 class SectionType(Enum):
     LONG = 1

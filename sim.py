@@ -18,6 +18,40 @@ test_circuit = Circuit([
     ST.SHORT,
     ST.TURN_LEFT
 ])
+
+real_circuit = Circuit([
+    ST.SHORT,
+    ST.SHORT,
+    ST.TURN_RIGHT,
+    ST.SHORT,
+    ST.SHORT,
+    ST.SHORT,
+    ST.TURN_RIGHT,
+    ST.TURN_LEFT,
+    ST.SHORT,
+    ST.TURN_LEFT,
+    ST.SHORT,
+    ST.TURN_RIGHT,
+    ST.SHORT,
+    ST.TURN_LEFT,
+    ST.TURN_LEFT,
+    ST.LONG,
+    ST.LONG,
+    ST.LONG,
+    ST.LONG,
+    ST.LONG,
+    ST.LONG,
+    ST.LONG,
+    ST.TURN_LEFT,
+    ST.SHORT,
+    ST.SHORT,
+    ST.SHORT,
+    ST.TURN_LEFT,
+    ST.LONG,
+    ST.SHORT,
+    ST.TURN_RIGHT,
+    ST.TURN_LEFT,
+    ST.TURN_LEFT,
 ])
 
 def main():
@@ -27,7 +61,7 @@ def main():
         raylib.begin_drawing()
         raylib.clear_background(raylib.WHITE)
         raylib.draw_text("circuit", 190, 200, 20, raylib.VIOLET)
-        test_circuit.draw()
+        real_circuit.draw()
         raylib.end_drawing()
     pass
 
