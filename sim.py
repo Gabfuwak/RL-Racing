@@ -1,21 +1,23 @@
 import pyray as raylib
+from circuit import SectionType as ST
 from circuit import *
 
 test_L_circuit = Circuit([
-    SectionType.LONG,
-    SectionType.TURN_LEFT,
-    SectionType.SHORT
+    ST.LONG,
+    ST.TURN_LEFT,
+    ST.SHORT
 ])
 
 test_circuit = Circuit([
-    SectionType.LONG,
-    SectionType.TURN_LEFT,
-    SectionType.SHORT,
-    SectionType.TURN_LEFT,
-    SectionType.LONG,
-    SectionType.TURN_LEFT,
-    SectionType.SHORT,
-    SectionType.TURN_LEFT
+    ST.LONG,
+    ST.TURN_LEFT,
+    ST.SHORT,
+    ST.TURN_LEFT,
+    ST.LONG,
+    ST.TURN_LEFT,
+    ST.SHORT,
+    ST.TURN_LEFT
+])
 ])
 
 def main():
