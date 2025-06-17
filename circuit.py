@@ -4,7 +4,8 @@ from enum import Enum
 
 LONG_SECTION_LENGTH = 34.2
 SHORT_SECTION_LENGTH = 11.4
-TURN_RADIUS = 17.0
+CIRCUIT_WIDTH = SHORT_SECTION_LENGTH
+TURN_RADIUS = 17.1 # (3*SHORT_SECTION_LENGTH)/2, millieu entre le inside radius qui est de 1*SHORT_SECTION_LENGTH et outside radius qui est de 2*SHORT_SECTION_LENGTH
 
 class SectionType(Enum):
     LONG = 1
@@ -24,13 +25,41 @@ class Circuit:
             if section == SectionType.LONG:
                 section_offset = raylib.vector2_scale(facing, LONG_SECTION_LENGTH)
                 end_pos = raylib.vector2_add(curr_pos, section_offset)
-                raylib.draw_line_v(curr_pos, end_pos, raylib.DARKGREEN)
+
+                # left side 
+                dir_to_left = raylib.vector2_rotate(facing, math.radians(-90))
+                offset_to_left = raylib.vector2_scale(dir_to_left, CIRCUIT_WIDTH/2)
+                left_side_start = raylib.vector2_add(curr_pos, offset_to_left)
+                left_side_end = raylib.vector2_add(end_pos, offset_to_left)
+                raylib.draw_line_v(left_side_start, left_side_end, raylib.DARKGREEN)
+
+                # right side
+                dir_to_right = raylib.vector2_rotate(facing, math.radians(90))
+                offset_to_right = raylib.vector2_scale(dir_to_right, CIRCUIT_WIDTH/2)
+                right_side_start = raylib.vector2_add(curr_pos, offset_to_right)
+                right_side_end = raylib.vector2_add(end_pos, offset_to_right)
+                raylib.draw_line_v(right_side_start, right_side_end, raylib.DARKGREEN)
+
                 curr_pos = end_pos
 
             elif section == SectionType.SHORT:
                 section_offset = raylib.vector2_scale(facing, SHORT_SECTION_LENGTH)
                 end_pos = raylib.vector2_add(curr_pos, section_offset)
-                raylib.draw_line_v(curr_pos, end_pos, raylib.GREEN)
+
+                # left side 
+                dir_to_left = raylib.vector2_rotate(facing, math.radians(-90))
+                offset_to_left = raylib.vector2_scale(dir_to_left, CIRCUIT_WIDTH/2)
+                left_side_start = raylib.vector2_add(curr_pos, offset_to_left)
+                left_side_end = raylib.vector2_add(end_pos, offset_to_left)
+                raylib.draw_line_v(left_side_start, left_side_end, raylib.GREEN)
+
+                # right side
+                dir_to_right = raylib.vector2_rotate(facing, math.radians(90))
+                offset_to_right = raylib.vector2_scale(dir_to_right, CIRCUIT_WIDTH/2)
+                right_side_start = raylib.vector2_add(curr_pos, offset_to_right)
+                right_side_end = raylib.vector2_add(end_pos, offset_to_right)
+                raylib.draw_line_v(right_side_start, right_side_end, raylib.GREEN)
+
                 curr_pos = end_pos
 
             elif section == SectionType.TURN_LEFT:
@@ -48,10 +77,23 @@ class Circuit:
                 start_angle = math.degrees(math.atan2(facing.y, facing.x))
                 end_angle = start_angle + 90
                 
+                # Note: En soit on pourrait draw un seul ring avec SHORT_SECTION_LENGTH inside et 2*SHORT_SECTION_LENGTH outside mais j'ai envie d'avoir que les outlines
+                # Interieur
                 raylib.draw_ring(
                     center,
-                    TURN_RADIUS-1,
-                    TURN_RADIUS,
+                    SHORT_SECTION_LENGTH-1,
+                    SHORT_SECTION_LENGTH,
+                    start_angle,
+                    end_angle,
+                    32,
+                    raylib.RED
+                )
+
+                # Exterieur
+                raylib.draw_ring(
+                    center,
+                    2*SHORT_SECTION_LENGTH - 1,
+                    2*SHORT_SECTION_LENGTH,
                     start_angle,
                     end_angle,
                     32,
@@ -76,15 +118,26 @@ class Circuit:
                 start_angle = math.degrees(math.atan2(facing.y, facing.x))
                 end_angle = start_angle - 90
                 
+                # Interieur
                 raylib.draw_ring(
                     center,
-                    TURN_RADIUS-1,
-                    TURN_RADIUS,
+                    SHORT_SECTION_LENGTH-1,
+                    SHORT_SECTION_LENGTH,
                     start_angle,
                     end_angle,
                     32,
                     raylib.RED
                 )
 
+                # Exterieur
+                raylib.draw_ring(
+                    center,
+                    2*SHORT_SECTION_LENGTH - 1,
+                    2*SHORT_SECTION_LENGTH,
+                    start_angle,
+                    end_angle,
+                    32,
+                    raylib.RED
+                )
                 facing = new_facing
 
