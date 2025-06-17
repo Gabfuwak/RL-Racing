@@ -40,6 +40,20 @@ class Circuit:
                 right_side_end = raylib.vector2_add(end_pos, offset_to_right)
                 raylib.draw_line_v(right_side_start, right_side_end, raylib.DARKGREEN)
 
+                # left rail 
+                dir_to_left = raylib.vector2_rotate(facing, math.radians(-90))
+                offset_to_left = raylib.vector2_scale(dir_to_left, CIRCUIT_WIDTH/4)
+                left_side_start = raylib.vector2_add(curr_pos, offset_to_left)
+                left_side_end = raylib.vector2_add(end_pos, offset_to_left)
+                raylib.draw_line_v(left_side_start, left_side_end, raylib.BLACK)
+
+                # right rail
+                dir_to_right = raylib.vector2_rotate(facing, math.radians(90))
+                offset_to_right = raylib.vector2_scale(dir_to_right, CIRCUIT_WIDTH/4)
+                right_side_start = raylib.vector2_add(curr_pos, offset_to_right)
+                right_side_end = raylib.vector2_add(end_pos, offset_to_right)
+                raylib.draw_line_v(right_side_start, right_side_end, raylib.BLACK)
+
                 curr_pos = end_pos
 
             elif section == SectionType.SHORT:
@@ -59,6 +73,20 @@ class Circuit:
                 right_side_start = raylib.vector2_add(curr_pos, offset_to_right)
                 right_side_end = raylib.vector2_add(end_pos, offset_to_right)
                 raylib.draw_line_v(right_side_start, right_side_end, raylib.GREEN)
+
+                # left rail 
+                dir_to_left = raylib.vector2_rotate(facing, math.radians(-90))
+                offset_to_left = raylib.vector2_scale(dir_to_left, CIRCUIT_WIDTH/4)
+                left_side_start = raylib.vector2_add(curr_pos, offset_to_left)
+                left_side_end = raylib.vector2_add(end_pos, offset_to_left)
+                raylib.draw_line_v(left_side_start, left_side_end, raylib.BLACK)
+
+                # right rail
+                dir_to_right = raylib.vector2_rotate(facing, math.radians(90))
+                offset_to_right = raylib.vector2_scale(dir_to_right, CIRCUIT_WIDTH/4)
+                right_side_start = raylib.vector2_add(curr_pos, offset_to_right)
+                right_side_end = raylib.vector2_add(end_pos, offset_to_right)
+                raylib.draw_line_v(right_side_start, right_side_end, raylib.BLACK)
 
                 curr_pos = end_pos
 
@@ -100,6 +128,29 @@ class Circuit:
                     raylib.RED
                 )
 
+
+                # Rail exterieur
+                raylib.draw_ring(
+                    center,
+                    (2*SHORT_SECTION_LENGTH - SHORT_SECTION_LENGTH/4) - 1,
+                    (2*SHORT_SECTION_LENGTH - SHORT_SECTION_LENGTH/4),
+                    start_angle,
+                    end_angle,
+                    32,
+                    raylib.BLACK
+                )
+
+                # Rail interieur 
+                raylib.draw_ring(
+                    center,
+                    (SHORT_SECTION_LENGTH + SHORT_SECTION_LENGTH/4) - 1,
+                    (SHORT_SECTION_LENGTH + SHORT_SECTION_LENGTH/4),
+                    start_angle,
+                    end_angle,
+                    32,
+                    raylib.BLACK
+                )
+
                 facing = new_facing
 
 
@@ -139,5 +190,28 @@ class Circuit:
                     32,
                     raylib.RED
                 )
+
+                # Rail exterieur
+                raylib.draw_ring(
+                    center,
+                    (2*SHORT_SECTION_LENGTH - SHORT_SECTION_LENGTH/4) - 1,
+                    (2*SHORT_SECTION_LENGTH - SHORT_SECTION_LENGTH/4),
+                    start_angle,
+                    end_angle,
+                    32,
+                    raylib.BLACK
+                )
+
+                # Rail interieur 
+                raylib.draw_ring(
+                    center,
+                    (SHORT_SECTION_LENGTH + SHORT_SECTION_LENGTH/4) - 1,
+                    (SHORT_SECTION_LENGTH + SHORT_SECTION_LENGTH/4),
+                    start_angle,
+                    end_angle,
+                    32,
+                    raylib.BLACK
+                )
+
                 facing = new_facing
 
