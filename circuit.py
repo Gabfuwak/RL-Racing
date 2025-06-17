@@ -18,11 +18,61 @@ class Circuit:
     def __init__(self, sections):
         self.sections = sections # Liste de sections
         self._section_data = self._precompute_sections()
+        self._length = self._get_circuit_length()
 
     def draw(self):
         self._draw_circuit_outlines()
         self._draw_rails(is_inside_rail=True)
         self._draw_rails(is_inside_rail=False)
+
+    def _get_circuit_length(self):
+        ret = 0
+        for section in self._section_data:
+            ret += section['length']
+        return ret
+
+    def _get_section_data_at(self, distance):
+        # TODO (minor): On pourrait optimiser en faisant une recherche dichotomique ici, mais les circuits vont pas etre a ce point longs
+        curr_dist = 0
+        distance = distance % self._length
+        for section in self._section_data:
+            if distance < section['start_distance'] + section['length']:
+                return section
+            curr_dist += section['length']
+        raise Exception("Should be unreachable (Circuit::_get_section_data_at)") 
+
+    def _get_distance_in_section(self, section_data, distance):
+        distance = distance % self._length
+        return distance - section_data['start_distance']
+        
+
+
+
+    def get_position_at(self, distance):
+        section_data = self._get_section_data_at(distance)
+        if section_data['section_type'] == SectionType.LONG or section_data['section_type'] == SectionType.SHORT:
+            offset = raylib.vector2_scale(section_data['facing'], self._get_distance_in_section(section_data, distance))
+            return raylib.vector2_add(section_data['start_pos'], offset)
+
+        elif section_data['section_type'] == SectionType.TURN_LEFT or section_data['section_type'] == SectionType.TURN_RIGHT:
+            dist_in_circle = self._get_distance_in_section(section_data, distance)
+            rotation_direction = 1 if section_data['section_type'] == SectionType.TURN_RIGHT else -1
+
+
+            radius_vector = raylib.vector2_subtract(section_data['start_pos'], section_data['center'])
+            initial_radial_angle_rad = math.atan2(radius_vector.y, radius_vector.x)
+            
+            angle_offset_rad = rotation_direction * dist_in_circle / TURN_RADIUS
+            final_radial_angle_rad = initial_radial_angle_rad + angle_offset_rad
+            
+            offset_angle = raylib.Vector2(math.cos(final_radial_angle_rad), math.sin(final_radial_angle_rad))
+
+            offset_dist = raylib.vector2_scale(offset_angle, TURN_RADIUS)
+
+            return raylib.vector2_add(section_data['center'], offset_dist)
+        raise Exception("Should be unreachable (Circuit::_get_position_at)") 
+
+        
 
     def _precompute_sections(self):
         # Traverse le circuit et stocke des metadonnées sur sa composition pour eviter d'avoir a le traverser a chaque fois 
@@ -39,8 +89,8 @@ class Circuit:
                     'start_distance': cumulative_distance,
                     'length': length,
                     'section_type': section,
-                    'start_pos': raylib.Vector2(curr_pos.x, curr_pos.y),
-                    'facing': raylib.Vector2(facing.x, facing.y)
+                    'start_pos': curr_pos,
+                    'facing': facing
                 }
                 section_data.append(data)
                 
@@ -55,8 +105,8 @@ class Circuit:
                     'start_distance': cumulative_distance,
                     'length': length,
                     'section_type': section,
-                    'start_pos': raylib.Vector2(curr_pos.x, curr_pos.y),
-                    'facing': raylib.Vector2(facing.x, facing.y)
+                    'start_pos': curr_pos,
+                    'facing': facing
                 }
                 section_data.append(data)
                 
@@ -81,7 +131,9 @@ class Circuit:
                     'start_distance': cumulative_distance,
                     'length': arc_length,
                     'section_type': section,
-                    'center': raylib.Vector2(center.x, center.y),
+                    'start_pos': curr_pos,
+                    'facing': new_facing,
+                    'center': center,
                     'start_angle': start_angle,
                     'total_angle': turn_angle
                 }
