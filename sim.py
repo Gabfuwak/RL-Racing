@@ -62,7 +62,7 @@ def main():
     raylib.set_target_fps(60)
     while not raylib.window_should_close():
         car_position += car_speed * raylib.get_frame_time()  # Avancer avec le temps
-        car_pos_2d = real_circuit.get_position_at(car_position)
+        car_pos_2d = real_circuit.get_position_at(car_position, False)
         raylib.begin_drawing()
         raylib.clear_background(raylib.WHITE)
         raylib.draw_text("circuit", 190, 200, 20, raylib.VIOLET)
