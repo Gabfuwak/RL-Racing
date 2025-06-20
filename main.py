@@ -89,8 +89,8 @@ def main():
             action_outside = [0.]
 
         # Step envs
-        obs_inside,  _, _, _, info_inside = env_inside.step(action_inside)
-        obs_outside, _, _, _, info_outside = env_outside.step(action_outside)
+        obs_inside,  _, crashed_outside, _, info_inside = env_inside.step(action_inside)
+        obs_outside, _, crashed_inside, _, info_outside = env_outside.step(action_outside)
 
         state_inside = info_inside['state']
         state_outside = info_outside['state']
@@ -108,6 +108,7 @@ def main():
         # UI Info
         raylib.draw_text(f"Speed IN: {state_inside['speed']:.1f} | OUT: {state_outside['speed']:.1f}", 10, 60, 18, raylib.BLACK)
         
+        raylib.draw_text(f"Crashed IN: {crashed_inside} | OUT: {crashed_outside}", 10, 150, 18, raylib.RED)
         raylib.end_drawing() 
         raylib.end_drawing()
 
