@@ -180,20 +180,43 @@ def main():
                     if (area > 1000 ):
                         clean_mask[labels == i] = 255
 
-                edges = cv2.Canny(clean_mask, 50, 150)
-                lines = cv2.HoughLinesP(edges, 1, 2*np.pi/180, threshold=20, 
-                        minLineLength=100, maxLineGap=20)
+                kernel_enlarge = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (40, 40))
+                enlarged_track = cv2.dilate(clean_mask, kernel_enlarge, iterations=1)
 
-                line_frame = transformed
-                
-                if lines is not None:
-                    for line in lines:
-                        x1, y1, x2, y2 = line[0]
-                        cv2.line(line_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                hsv = cv2.cvtColor(transformed, cv2.COLOR_BGR2HSV)
+                masked_hsv = cv2.bitwise_and(hsv, hsv, mask=enlarged_track)
 
+
+                lower_green = np.array([40, 50, 50])   # Vert foncé
+                upper_green = np.array([80, 255, 255]) # Vert clair
+
+                car_mask = cv2.inRange(masked_hsv, lower_green, upper_green)
+
+                # cleanup les tous petits blobs
+                num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(car_mask, connectivity=8)
+
+                clean_car_mask = np.zeros_like(car_mask)
+                for i in range(1, num_labels):  # Skip background (0)
+                    area = stats[i, cv2.CC_STAT_AREA]
+                    
+                    if (area > 10):
+                        clean_car_mask[labels == i] = 255
+
+                y_coords, x_coords = np.where(clean_car_mask == 255)
+
+                if len(x_coords) > 0:
+                    center_x = int(np.mean(x_coords))
+                    center_y = int(np.mean(y_coords))
+                    center = (center_x, center_y)
+                else:
+                    center = None
                         
-                cv2.imshow("lines", line_frame)
-                cv2.imshow("threshold", track_mask)
+                final = transformed
+                if center is not None:
+                    cv2.circle(final, center, 30, (255,0,0), 5)
+                cv2.imshow("car_mask", car_mask)
+                cv2.imshow("clean_car_mask", clean_car_mask)
+                cv2.imshow("car", final)
                 cv2.imshow(WINDOW_NAME, frame)
             
             if cv2.waitKey(1) & 0xFF == ord('q'):
