@@ -132,8 +132,10 @@ def apply_digital_zoom(frame, center, zoom_factor):
 
 def main():
     cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    win_height = 600
+    frame_size = (win_height * 16/9, win_height)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, frame_size[0])
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_size[1])
     
 
 
@@ -145,8 +147,9 @@ def main():
     try:
         while True:
             ret, frame = cap.read()
-            zoom_center = (850, 740)
-            frame = apply_digital_zoom(frame, zoom_center, 2.3)
+            zoom_center_rel = (0.45, 0.7)
+            zoom_center_abs = (int(frame_size[0]*zoom_center_rel[0]), int(frame_size[1]*zoom_center_rel[1]))
+            frame = apply_digital_zoom(frame, zoom_center_abs, 1)
             
             if not ret:
                 print("Error: Unable to get frame.")
@@ -155,13 +158,43 @@ def main():
             
             # Transformation perspective si 4 points définis
             transformed, matrix = apply_perspective_transform(projection_points, frame)
+
             
             # Affichage
             cv2.imshow(WINDOW_NAME, display_frame)
             if transformed is not None:
                 cv2.imshow("Circuit View", transformed)
-            
-            cv2.imshow(WINDOW_NAME, frame)
+                gray = cv2.cvtColor(transformed, cv2.COLOR_BGR2GRAY)
+                track_mask = cv2.inRange(gray, 10, 90)
+                # Trouver tous les blobs blancs
+
+                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
+                eroded_mask = cv2.morphologyEx(track_mask, cv2.MORPH_OPEN, kernel)
+
+                num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(eroded_mask, connectivity=8)
+
+                clean_mask = np.zeros_like(eroded_mask)
+                for i in range(1, num_labels):  # Skip background (0)
+                    area = stats[i, cv2.CC_STAT_AREA]
+                    
+                    if (area > 1000 ):
+                        clean_mask[labels == i] = 255
+
+                edges = cv2.Canny(clean_mask, 50, 150)
+                lines = cv2.HoughLinesP(edges, 1, 2*np.pi/180, threshold=20, 
+                        minLineLength=100, maxLineGap=20)
+
+                line_frame = transformed
+                
+                if lines is not None:
+                    for line in lines:
+                        x1, y1, x2, y2 = line[0]
+                        cv2.line(line_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+                        
+                cv2.imshow("lines", line_frame)
+                cv2.imshow("threshold", track_mask)
+                cv2.imshow(WINDOW_NAME, frame)
             
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
