@@ -81,6 +81,7 @@ class RailCarSim:
             'angle_30cm': get_angle_at_distance(30),
             'angle_50cm': get_angle_at_distance(50),
             # Pour affichage/debug:
+            'rail_distance' : self.rail_distance,
             'position': position,
             'tangent': tangent,
         }

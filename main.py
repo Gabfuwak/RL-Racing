@@ -109,7 +109,6 @@ def main():
         raylib.draw_text(f"Speed IN: {state_inside['speed']:.1f} | OUT: {state_outside['speed']:.1f}", 10, 60, 18, raylib.BLACK)
         
         raylib.draw_text(f"Crashed IN: {crashed_inside} | OUT: {crashed_outside}", 10, 150, 18, raylib.RED)
-        raylib.end_drawing() 
         raylib.end_drawing()
 
 if __name__ == "__main__":
