@@ -26,6 +26,7 @@ class Circuit:
         self._length = self._get_circuit_length()
         self._inside_rail_length = self._get_rail_length(True)
         self._outside_rail_length = self._get_rail_length(False)
+        self._position_lookup = self._precompute_position_lookup()
 
     def draw(self):
         self._draw_circuit_outlines()
@@ -93,6 +94,20 @@ class Circuit:
         self._get_section_data_at(center_distance);
         #todo
         pass
+
+    def position_to_rail_distance(self, x, y, is_inside_rail=True):
+        rail_name = 'inside' if is_inside_rail else 'outside'
+        min_x, min_y, resolution = self._position_lookup['bounds']
+
+        grid_x = int((x - min_x) / resolution)
+        grid_y = int((y - min_y) / resolution)
+
+        grid = self._position_lookup[rail_name]
+        if 0 <= grid_x < len(grid[0]) and 0 <= grid_y < len(grid):
+            distance = grid[grid_y][grid_x]
+            return distance if distance is not None else None
+
+        return None
 
     def get_position_at_rail(self, rail_distance, is_inside_rail):
         section_data = self._get_section_data_at_rail(rail_distance, is_inside_rail)
@@ -272,6 +287,53 @@ class Circuit:
             return tangent
 
         
+    def _precompute_position_lookup(self, resolution=1.0):  # grille de 1cm
+        """Crée une grille 2D (x,y) -> distance_sur_rail"""
+        
+        # Calculer les bounds du circuit
+        all_positions = []
+        for rail_type in [True, False]:  # inside/outside
+            rail_length = self._inside_rail_length if rail_type else self._outside_rail_length
+            for distance in range(0, int(rail_length), 1):  # échantillonner tous les 1cm
+                pos = self.get_position_at_rail(distance, rail_type)
+                all_positions.append((pos.x, pos.y))
+        
+        min_x = min(p[0] for p in all_positions) - 50  # marge
+        max_x = max(p[0] for p in all_positions) + 50
+        min_y = min(p[1] for p in all_positions) - 50 
+        max_y = max(p[1] for p in all_positions) + 50
+        
+        # Créer la grille
+        width = int((max_x - min_x) / resolution) + 1
+        height = int((max_y - min_y) / resolution) + 1
+        
+        lookup_grid = {
+            'inside': [[None for _ in range(width)] for _ in range(height)],
+            'outside': [[None for _ in range(width)] for _ in range(height)],
+            'bounds': (min_x, min_y, resolution)
+        }
+        
+        # Remplir la grille
+        for rail_type in [True, False]:
+            rail_name = 'inside' if rail_type else 'outside'
+            rail_length = self._inside_rail_length if rail_type else self._outside_rail_length
+            
+            for distance in range(0, int(rail_length), 1):
+                pos = self.get_position_at_rail(distance, rail_type)
+                
+                # Convertir en indices de grille
+                grid_x = int((pos.x - min_x) / resolution)
+                grid_y = int((pos.y - min_y) / resolution)
+                
+                # Remplir aussi les cases voisines (anti-aliasing)
+                for dx in [-1, 0, 1]:
+                    for dy in [-1, 0, 1]:
+                        gx, gy = grid_x + dx, grid_y + dy
+                        if 0 <= gx < width and 0 <= gy < height:
+                            if lookup_grid[rail_name][gy][gx] is None:
+                                lookup_grid[rail_name][gy][gx] = distance
+        
+        return lookup_grid
 
     def _precompute_sections(self):
         # Traverse le circuit et stocke des metadonnées sur sa composition pour eviter d'avoir a le traverser a chaque fois 
