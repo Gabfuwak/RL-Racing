@@ -2,9 +2,11 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 import sim
+import requests
+import time
 
 
-class RailCarEnv(gym.Env):
+class RailCarSimEnv(gym.Env):
 
     def __init__(self, circuit, is_inside_rail, reward_function=None, reward_kwargs=None):
         super().__init__()
@@ -66,3 +68,63 @@ class RailCarEnv(gym.Env):
             state['angle_50cm']
         ], dtype=np.float32)
 
+
+
+class RailCarRealEnv(gym.Env):
+    def __init__(self, circuit, is_inside_rail, endpoint, reward_function=None, reward_kwargs=None):
+        super().__init__()
+        
+        self.endpoint = endpoint  # "http://10.12.194.56:5000"
+        self.circuit = circuit
+        self.is_inside_rail = is_inside_rail
+        
+        # Pour l'instant : observation simple (juste voltage)
+        self.action_space = spaces.Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32)
+        self.observation_space = spaces.Box(
+            low=np.array([0.0], dtype=np.float32),    # [voltage]
+            high=np.array([17.4], dtype=np.float32)   # [voltage max]
+        )
+        
+        self.reward_function = reward_function or self._default_reward
+        self.reward_kwargs = reward_kwargs or {}
+        self.current_step = 0
+
+
+    def step(self, action):
+        # On envoie l'action
+        duty_cycle = action[0] * 95.0
+        requests.post(f"{self.endpoint}/control", json={"duty_cycle": duty_cycle})
+        
+        # On recuperer l'obs
+        response = requests.get(f"{self.endpoint}/sensors")
+        voltage = response.json()["voltage"]
+        
+        observation = np.array([voltage], dtype=np.float32)
+        reward = self.reward_function({"voltage": voltage}, action[0], **self.reward_kwargs)
+        
+        # TODO: detection de crash
+        terminated = False
+        truncated = False
+        
+        info = {"voltage": voltage, "duty_cycle": duty_cycle}
+        
+        return observation, reward, terminated, truncated, info
+
+
+    def reset(self, seed=None, options=None):
+        super().reset(seed=seed)
+        
+        # On arrete le moteur
+        requests.post(f"{self.endpoint}/control", json={"duty_cycle": 0.0})
+        time.sleep(10)  # On laisse 10sec pour remettre au debut du terrain
+        
+        # Get initial observation
+        response = requests.get(f"{self.endpoint}/sensors")
+        voltage = response.json()["voltage"]
+        observation = np.array([voltage], dtype=np.float32)
+        
+        self.current_step = 0
+        return observation, {}
+
+    def _default_reward(self, state, action):
+        return 1.0  # Simple pour commencer

@@ -68,8 +68,8 @@ def main():
     raylib.set_target_fps(60)
     circuit = real_circuit
 
-    env_inside = RailCarEnv(circuit, is_inside_rail=True)
-    env_outside = RailCarEnv(circuit, is_inside_rail=False)
+    env_inside = RailCarSimEnv(circuit, is_inside_rail=True)
+    env_outside = RailCarSimEnv(circuit, is_inside_rail=False)
 
     obs_inside, _ = env_inside.reset()
     obs_outside, _ = env_outside.reset()

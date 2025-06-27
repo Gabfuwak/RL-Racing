@@ -18,6 +18,7 @@ class RailCarController:
         self.sio = socketio.Client()
         self.server_url = server_url
         self.sio.on('update_plot', self._on_sensor_update)
+        self.sio.on('motor_control', self._on_motor_control)
 
         self.last_voltage = 0.0
         self.current_duty_cycle = 0.0
@@ -36,28 +37,11 @@ class RailCarController:
             self.last_voltage = float(data['value'])
         except (KeyError, ValueError) as e:
             print(f"[Controller] Error parsing voltage: {e}")
-        
-    def step(self, action):
-        # Convert action (0.0-1.0) to duty cycle (0-95%)
-        # Apply via GPIO PWM
-        # Return current state dict
 
-        self.current_duty_cycle = action * 95.0 # Max 95%
-        self.pwm.ChangeDutyCycle(self.current_duty_cycle)
-        return self.get_state()
-        
-    def get_state(self):
-        return {
-            'voltage': self.last_voltage,
-            'current_duty_cycle': self.current_duty_cycle,
-        }
-        
-    def reset(self):
-        # Set duty cycle to 0
-        # Maybe wait for stable voltage reading
-        self.current_duty_cycle = 0.0
-        self.pwm.ChangeDutyCycle(0.0)
-        return self.get_state()
+    def _on_motor_control(self, data):
+        duty_cycle = data.get('duty_cycle', 0.0)
+        self.current_duty_cycle = duty_cycle
+        self.pwm.ChangeDutyCycle(duty_cycle)
         
     def cleanup(self):
         # Stop PWM, cleanup GPIO
