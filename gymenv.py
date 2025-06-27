@@ -106,7 +106,12 @@ class RailCarRealEnv(gym.Env):
         terminated = False
         truncated = False
         
-        info = {"voltage": voltage, "duty_cycle": duty_cycle}
+        info = {
+            'state': {
+                'voltage': voltage,
+                'duty_cycle': duty_cycle
+            }
+        }
         
         return observation, reward, terminated, truncated, info
 

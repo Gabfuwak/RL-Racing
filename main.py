@@ -12,11 +12,11 @@ test_L_circuit = Circuit([
 round_circuit = Circuit([
     ST.LONG,
     ST.TURN_LEFT,
-    ST.SHORT,
+    ST.LONG,
     ST.TURN_LEFT,
     ST.LONG,
     ST.TURN_LEFT,
-    ST.SHORT,
+    ST.LONG,
     ST.TURN_LEFT
 ])
 
@@ -65,10 +65,10 @@ def draw_tangent(position, tangent, color, length=25):
 
 def main():
     raylib.init_window(800, 600, "hii")
-    raylib.set_target_fps(60)
-    circuit = real_circuit
+    raylib.set_target_fps(20)
+    circuit = round_circuit
 
-    env_inside = RailCarSimEnv(circuit, is_inside_rail=True)
+    env_inside = RailCarRealEnv(circuit, is_inside_rail=True, endpoint='http://10.12.194.56:5000')
     env_outside = RailCarSimEnv(circuit, is_inside_rail=False)
 
     obs_inside, _ = env_inside.reset()
@@ -95,18 +95,18 @@ def main():
         state_inside = info_inside['state']
         state_outside = info_outside['state']
 
-        real_circuit.draw()
+        circuit.draw()
 
         # Voiture intérieure
-        draw_car(state_inside['position'], raylib.RED)
-        draw_tangent(state_inside['position'], state_inside['tangent'], raylib.MAROON)
+        #draw_car(state_inside['position'], raylib.RED)
+        #draw_tangent(state_inside['position'], state_inside['tangent'], raylib.MAROON)
         
         # Voiture extérieure  
         draw_car(state_outside['position'], raylib.BLUE)
         draw_tangent(state_outside['position'], state_outside['tangent'], raylib.DARKBLUE)
         
         # UI Info
-        raylib.draw_text(f"Speed IN: {state_inside['speed']:.1f} | OUT: {state_outside['speed']:.1f}", 10, 60, 18, raylib.BLACK)
+        #raylib.draw_text(f"Speed IN: {state_inside['speed']:.1f} | OUT: {state_outside['speed']:.1f}", 10, 60, 18, raylib.BLACK)
         
         raylib.draw_text(f"Crashed IN: {crashed_inside} | OUT: {crashed_outside}", 10, 150, 18, raylib.RED)
         raylib.end_drawing()

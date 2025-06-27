@@ -19,7 +19,7 @@ class RailCarSim:
         self.turn_friction_coef = 3000.0
 
 
-    def step(self, force, dt = 1/60):
+    def step(self, force, dt = 1/20):
 
         acceleration = force * self.acceleration_factor
         self.speed += acceleration * dt
