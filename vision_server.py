@@ -54,7 +54,7 @@ def get_reference_points():
     return points
 
 reference_points = get_reference_points()  
-detector = CarDetector(round_circuit, reference_points, camera_id=2, debug=False)
+detector = CarDetector(round_circuit, reference_points, camera_id=0, debug=False)
 
 @app.route('/car_position', methods=['GET'])
 def get_car_position():
@@ -62,7 +62,8 @@ def get_car_position():
         position = detector.get_car_position()
         
         if position:
-            x, y, rail_distance = position
+            x, y = position[0], position[1]
+            rail_distance = round_circuit.position_to_rail_distance(x, y, True)
             return jsonify({
                 'x': x, 'y': y, 
                 'rail_distance': rail_distance,
