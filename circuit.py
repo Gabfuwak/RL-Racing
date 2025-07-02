@@ -1,5 +1,6 @@
 import pyray as raylib
 import math
+import collections
 from enum import Enum
 
 LONG_SECTION_LENGTH = 34.2
@@ -105,9 +106,10 @@ class Circuit:
         grid = self._position_lookup[rail_name]
         if 0 <= grid_x < len(grid[0]) and 0 <= grid_y < len(grid):
             distance = grid[grid_y][grid_x]
-            return distance if distance is not None else None
+            return distance if distance != float('inf') else None
 
         return None
+    
 
     def get_position_at_rail(self, rail_distance, is_inside_rail):
         section_data = self._get_section_data_at_rail(rail_distance, is_inside_rail)
@@ -287,53 +289,47 @@ class Circuit:
             return tangent
 
         
-    def _precompute_position_lookup(self, resolution=1.0):  # grille de 1cm
-        """Crée une grille 2D (x,y) -> distance_sur_rail"""
-        
-        # Calculer les bounds du circuit
-        all_positions = []
-        for rail_type in [True, False]:  # inside/outside
-            rail_length = self._inside_rail_length if rail_type else self._outside_rail_length
-            for distance in range(0, int(rail_length), 1):  # échantillonner tous les 1cm
-                pos = self.get_position_at_rail(distance, rail_type)
-                all_positions.append((pos.x, pos.y))
-        
-        min_x = min(p[0] for p in all_positions) - 50  # marge
-        max_x = max(p[0] for p in all_positions) + 50
-        min_y = min(p[1] for p in all_positions) - 50 
-        max_y = max(p[1] for p in all_positions) + 50
-        
-        # Créer la grille
-        width = int((max_x - min_x) / resolution) + 1
-        height = int((max_y - min_y) / resolution) + 1
-        
-        lookup_grid = {
-            'inside': [[None for _ in range(width)] for _ in range(height)],
-            'outside': [[None for _ in range(width)] for _ in range(height)],
-            'bounds': (min_x, min_y, resolution)
-        }
-        
-        # Remplir la grille
-        for rail_type in [True, False]:
-            rail_name = 'inside' if rail_type else 'outside'
-            rail_length = self._inside_rail_length if rail_type else self._outside_rail_length
+    def _precompute_position_lookup(self, sample_width=1000, sample_height=1000, resolution=1):
+        inside_grid = [[None for _ in range(sample_width)] for _ in range(sample_height)]
+        outside_grid = [[None for _ in range(sample_width)] for _ in range(sample_height)]
+
+        queue = collections.deque()
+
+        # Seed all rail points at once
+        for rail_dist in range(0, int(self._inside_rail_length), resolution):
+            pos = self.get_position_at_rail(rail_dist, True)
+            x, y = int(pos.x), int(pos.y)
+            if 0 <= x < sample_width and 0 <= y < sample_height:
+                inside_grid[y][x] = rail_dist
+                queue.append((x, y, 'inside', rail_dist))
+
+        for rail_dist in range(0, int(self._outside_rail_length), resolution):
+            pos = self.get_position_at_rail(rail_dist, False)
+            x, y = int(pos.x), int(pos.y)
+            if 0 <= x < sample_width and 0 <= y < sample_height:
+                if outside_grid[y][x] is None:
+                    outside_grid[y][x] = rail_dist
+                    queue.append((x, y, 'outside', rail_dist))
+
+        neighbors = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+
+        while queue:
+            x, y, source_rail, rail_param = queue.popleft()
             
-            for distance in range(0, int(rail_length), 1):
-                pos = self.get_position_at_rail(distance, rail_type)
+            current_grid = inside_grid if source_rail == 'inside' else outside_grid
+            
+            for dx, dy in neighbors:
+                nx, ny = x + dx, y + dy
                 
-                # Convertir en indices de grille
-                grid_x = int((pos.x - min_x) / resolution)
-                grid_y = int((pos.y - min_y) / resolution)
-                
-                # Remplir aussi les cases voisines (anti-aliasing)
-                for dx in [-1, 0, 1]:
-                    for dy in [-1, 0, 1]:
-                        gx, gy = grid_x + dx, grid_y + dy
-                        if 0 <= gx < width and 0 <= gy < height:
-                            if lookup_grid[rail_name][gy][gx] is None:
-                                lookup_grid[rail_name][gy][gx] = distance
-        
-        return lookup_grid
+                if 0 <= nx < sample_width and 0 <= ny < sample_height:
+                    if current_grid[ny][nx] is None:  # First one to reach wins
+                        current_grid[ny][nx] = rail_param
+                        queue.append((nx, ny, source_rail, rail_param)) 
+        return {
+            'inside': inside_grid,
+            'outside': outside_grid,
+            'bounds': (0, 0, 1)
+        }
 
     def _precompute_sections(self):
         # Traverse le circuit et stocke des metadonnées sur sa composition pour eviter d'avoir a le traverser a chaque fois 
