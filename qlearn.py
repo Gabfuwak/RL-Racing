@@ -5,6 +5,7 @@ import numpy as np
 from circuit import SectionType as ST
 from gymenv import *
 from circuit import *
+import requests
 
 circuit = Circuit([
     ST.SHORT,
@@ -165,7 +166,21 @@ def print_q_table(q_table):
         print(f"{state:<8} {q_table[state,0]:<12.2f} {q_table[state,1]:<12.2f} {q_table[state,2]:<12.2f} {q_table[state,3]:<12.2f} {q_table[state,4]:<12.2f}")
     print("-" * 70)
 
+def send_training_data(state, action, reward, crashed, episode):
+    """Send training data to dashboard"""
+    try:
+        requests.post("http://localhost:5000/training_data", json={
+            'state': state,
+            'action': action,
+            'reward': reward,
+            'crashed': crashed,
+            'episode': episode
+        }, timeout=0.1)
+    except:
+        pass
+
 if __name__ == "__main__":
+    episode_count = 0
     
     parser = argparse.ArgumentParser(description="Q-learning avec enregistrement de la q-table")
     parser.add_argument('--qtable', type=str, default=None, help="Chemin vers Q-table")
@@ -194,6 +209,9 @@ if __name__ == "__main__":
         obs, _, crashed, _, info = env.step(action)
         next_state = obs_to_state(obs)
 
+        if crashed:
+            episode_count += 1
+
         info_state = info['state']
         if raylib.is_key_down(raylib.KeyboardKey.KEY_SPACE):
             circuit.draw()
@@ -204,6 +222,13 @@ if __name__ == "__main__":
         
         if prev_state is not None and prev_action is not None:
             update_q_table(prev_state, prev_action, reward, next_state)
+            send_training_data(
+                state=state,
+                action=action[0], 
+                reward=reward,
+                crashed=crashed,
+                episode=episode_count
+            )
             if raylib.is_key_down(raylib.KeyboardKey.KEY_SPACE):
                 print_q_table(q_table)
         

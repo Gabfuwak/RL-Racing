@@ -3,6 +3,7 @@ from vision import CarDetector
 from circuit import SectionType as ST
 from circuit import *
 import time
+import requests
 
 app = Flask(__name__)
 
@@ -56,6 +57,7 @@ def get_reference_points():
 reference_points = get_reference_points()  
 detector = CarDetector(round_circuit, reference_points, camera_id=2, debug=False)
 
+ 
 @app.route('/car_position', methods=['GET'])
 def get_car_position():
     try:
@@ -64,11 +66,21 @@ def get_car_position():
         if position:
             x, y = position[0], position[1]
             rail_distance = round_circuit.position_to_rail_distance(x, y, True)
-            return jsonify({
+            
+            response_data = {
                 'x': x, 'y': y, 
                 'rail_distance': rail_distance,
                 'timestamp': time.time()
-            })
+            }
+            
+            # Send to main server for dashboard
+            try:
+                requests.post("http://localhost:5000/car_position", 
+                            json=response_data, timeout=0.1)
+            except:
+                pass
+            
+            return jsonify(response_data)
         else:
             return jsonify({'error': 'no position detected'}), 404
             
