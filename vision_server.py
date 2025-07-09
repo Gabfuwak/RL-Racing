@@ -54,7 +54,7 @@ def get_reference_points():
     return points
 
 reference_points = get_reference_points()  
-detector = CarDetector(round_circuit, reference_points, camera_id=0, debug=False)
+detector = CarDetector(round_circuit, reference_points, camera_id=2, debug=False)
 
 @app.route('/car_position', methods=['GET'])
 def get_car_position():

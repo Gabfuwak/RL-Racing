@@ -41,7 +41,7 @@ circuit = Circuit([
     ST.TURN_LEFT,
 ])
 
-actions = np.linspace(0.0, 1.0, 5) # [0.0, 0.2, .., 1.0]
+actions = np.linspace(0.0, 0.6, 3) # [0.0, 0.2, .., 1.0]
 
 
 # Discrétisation de l'espace d'états, 3 samples (negatif, positif, nul) par distance d'angle
@@ -49,8 +49,6 @@ num_states = 3*3*3*3
 
 q_table = np.zeros((num_states, len(actions)), dtype=float)
 
-
-env = RailCarEnv(circuit, is_inside_rail=True)
 
 # Hyperparamètres du Q-learning
 learning_rate = 0.3       # alpha
@@ -97,14 +95,14 @@ def save_q_table():
         print(f"[Q-Learning] Error saving Q-table: {e}")
 
 
-def compute_reward(speed, crashed):
+def compute_reward(rail_distance, nb_turns, speed, crashed):
     """
     Calcule la récompense en fonction de la vitesse, avec un gros negatif pour un crash.
     """
     if crashed:
-        return -speed * 100
+        return -speed * 1000
     else:
-        return 10 + 0.01 * speed
+        return 500*nb_turns + rail_distance
 
 
 def update_q_table(state, action, reward, next_state):
@@ -177,14 +175,14 @@ if __name__ == "__main__":
     if args.qtable:
         load_q_table(args.qtable)
     
-    env = RailCarEnv(circuit, is_inside_rail=True)
+    env = RailCarRealEnv(circuit, is_inside_rail=True, endpoint="http://10.143.240.56:5000")
     obs, _ = env.reset()
     state = obs_to_state(obs)
 
     #while step_count < learning_steps:
 
     raylib.init_window(800, 600, "hii")
-    raylib.set_target_fps(60)
+    raylib.set_target_fps(10)
 
     while not raylib.window_should_close():
         raylib.begin_drawing()
@@ -199,18 +197,19 @@ if __name__ == "__main__":
         info_state = info['state']
         if raylib.is_key_down(raylib.KeyboardKey.KEY_SPACE):
             circuit.draw()
-            draw_car(info_state['position'], raylib.DARKBLUE)
+            draw_car(info_state['voltage'], raylib.DARKBLUE)
 
         
-        reward = compute_reward(obs[0], crashed)  # -100 si crashed, sinon +speed
+        reward = compute_reward(info_state['rail_distance'], info_state['nb_turns'], obs[0], crashed)  # -100 si crashed, sinon +speed
         
         if prev_state is not None and prev_action is not None:
             update_q_table(prev_state, prev_action, reward, next_state)
-            #if raylib.is_key_down(raylib.KeyboardKey.KEY_SPACE):
-            #    print_q_table(q_table)
+            if raylib.is_key_down(raylib.KeyboardKey.KEY_SPACE):
+                print_q_table(q_table)
         
         if crashed:
             print(f"crash at distance:{info_state['rail_distance']}")
+            save_q_table()
             obs, _ = env.reset()
             next_state = obs_to_state(obs)
             prev_state = None  # Pas de continuité après crash
