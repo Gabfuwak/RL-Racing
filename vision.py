@@ -18,13 +18,14 @@ class CarDetector:
         self.reference_points = reference_points # Coordonnées sur le circuit
         self.last_position = None
         self.background_model = None
+        self.circuit_mask = None
 
 
         # Store transformation parameters for consistent coordinate mapping
         self.transform_offset_x = 0
         self.transform_offset_y = 0
         self.transform_scale = 1.0
-        self.transform_padding = 50
+        self.transform_padding = 10
 
 
         self._calibrate()
@@ -158,8 +159,35 @@ class CarDetector:
             self.background_model = blurred
         
         cv2.destroyWindow("Calibration")
+        self._generate_circuit_mask()
         
 
+    def _generate_circuit_mask(self):
+        # self.background_model is already grayscale, so we don't need to convert it
+        if len(self.background_model.shape) == 3:
+            # If somehow it's still BGR, convert it
+            gray = cv2.cvtColor(self.background_model, cv2.COLOR_BGR2GRAY)
+        else:
+            # It's already grayscale, use it directly
+            gray = self.background_model
+            
+        track_mask = cv2.inRange(gray, 10, 90)
+        # Trouver tous les blobs blancs
+
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+        eroded_mask = cv2.morphologyEx(track_mask, cv2.MORPH_OPEN, kernel)
+
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(eroded_mask, connectivity=8)
+
+        clean_mask = np.zeros_like(eroded_mask)
+        for i in range(1, num_labels):  # Skip background (0)
+            area = stats[i, cv2.CC_STAT_AREA]
+
+            if (area > 1000 ):
+                clean_mask[labels == i] = 255
+
+        kernel_enlarge = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (40, 40))
+        self.circuit_mask = cv2.dilate(clean_mask, kernel_enlarge, iterations=1) 
     
     def _calibration_mouse_callback(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -194,13 +222,17 @@ class CarDetector:
 
             _, car_mask = cv2.threshold(diff, 40, 255, cv2.THRESH_BINARY)
 
+            if self.circuit_mask is not None:
+                car_mask = cv2.bitwise_and(car_mask, self.circuit_mask)
             # On recupere la position de tous les pixels de voiture qu'on a trouvé et on fait la moyenne pour estimer la position
             y_coords, x_coords = np.where(car_mask >= 128)
+
 
             if self.debug:
                 cv2.imshow("initial_frame", frame)
                 cv2.imshow("transformed", transformed)
                 cv2.imshow("car_mask", car_mask)
+                cv2.imshow("circuit_mask", self.circuit_mask)
                 cv2.waitKey(1)
 
             if len(x_coords) > 0:
