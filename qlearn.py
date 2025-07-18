@@ -5,6 +5,10 @@ import numpy as np
 from circuit import SectionType as ST
 from gymenv import *
 from circuit import *
+import requests
+
+last_toggle_press = 0.0
+show_q_table_toggle = False
 
 circuit = Circuit([
     ST.SHORT,
@@ -39,6 +43,12 @@ circuit = Circuit([
     ST.TURN_RIGHT,
     ST.TURN_LEFT,
     ST.TURN_LEFT,
+])
+
+round_circuit = Circuit([
+    ST.SHORT, ST.SHORT, ST.TURN_LEFT,
+    ST.LONG, ST.TURN_LEFT, ST.LONG, 
+    ST.TURN_LEFT, ST.LONG, ST.TURN_LEFT, ST.SHORT,
 ])
 
 actions = np.linspace(0.0, 0.6, 3) # [0.0, 0.2, .., 1.0]
@@ -100,7 +110,7 @@ def compute_reward(rail_distance, nb_turns, speed, crashed):
     Calcule la récompense en fonction de la vitesse, avec un gros negatif pour un crash.
     """
     if crashed:
-        return -speed * 1000
+        return -10000
     else:
         return 500*nb_turns + rail_distance
 
@@ -159,13 +169,27 @@ def print_q_table(q_table):
     os.system("clear")  # Clear terminal (use "cls" on Windows)
     print("Q-TABLE :")
     print("-" * 70)
-    print(f"{'State':<8} {'0.00':<12} {'0.25':<12} {'0.50':<12} {'0.75':<12} {'1.00':<12}")
+    print(f"{'State':<8} {'stop':<12} {'slow':<12} {'fast':<12}")
     print("-" * 70)
     for state in range(q_table.shape[0]):
-        print(f"{state:<8} {q_table[state,0]:<12.2f} {q_table[state,1]:<12.2f} {q_table[state,2]:<12.2f} {q_table[state,3]:<12.2f} {q_table[state,4]:<12.2f}")
+        print(f"{state:<8} {q_table[state,0]:<12.2f} {q_table[state,1]:<12.2f} {q_table[state,2]:<12.2f}")
     print("-" * 70)
 
+def send_training_data(state, action, reward, crashed, episode):
+    """Send training data to dashboard"""
+    try:
+        requests.post("http://10.135.180.56:5000/training_data", json={
+            'state': state,
+            'action': action,
+            'reward': reward,
+            'crashed': crashed,
+            'episode': episode
+        }, timeout=0.1)
+    except:
+        pass
+
 if __name__ == "__main__":
+    episode_count = 0
     
     parser = argparse.ArgumentParser(description="Q-learning avec enregistrement de la q-table")
     parser.add_argument('--qtable', type=str, default=None, help="Chemin vers Q-table")
@@ -175,7 +199,7 @@ if __name__ == "__main__":
     if args.qtable:
         load_q_table(args.qtable)
     
-    env = RailCarRealEnv(circuit, is_inside_rail=True, endpoint="http://10.143.240.56:5000")
+    env = RailCarRealEnv(round_circuit, is_inside_rail=True, endpoint="http://10.135.180.56:5000")
     obs, _ = env.reset()
     state = obs_to_state(obs)
 
@@ -194,18 +218,35 @@ if __name__ == "__main__":
         obs, _, crashed, _, info = env.step(action)
         next_state = obs_to_state(obs)
 
+        if crashed:
+            episode_count += 1
+
         info_state = info['state']
-        if raylib.is_key_down(raylib.KeyboardKey.KEY_SPACE):
+        """if raylib.is_key_down(raylib.KeyboardKey.KEY_SPACE):
             circuit.draw()
             draw_car(info_state['voltage'], raylib.DARKBLUE)
+                """
 
         
         reward = compute_reward(info_state['rail_distance'], info_state['nb_turns'], obs[0], crashed)  # -100 si crashed, sinon +speed
         
         if prev_state is not None and prev_action is not None:
             update_q_table(prev_state, prev_action, reward, next_state)
+            send_training_data(
+                state=state,
+                action=action[0], 
+                reward=reward,
+                crashed=crashed,
+                episode=episode_count
+            )
             if raylib.is_key_down(raylib.KeyboardKey.KEY_SPACE):
+                presstime = time.time()
+                if presstime - last_toggle_press > 0.5:
+                    show_q_table_toggle = not show_q_table_toggle
+
+            if show_q_table_toggle:
                 print_q_table(q_table)
+
         
         if crashed:
             print(f"crash at distance:{info_state['rail_distance']}")

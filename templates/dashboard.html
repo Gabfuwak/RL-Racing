@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rail Car RL Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .circuit-container {
+            position: relative;
+            background: white;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .circuit-background {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .circuit-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            pointer-events: none;
+        }
+        
+        .stats-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .stat-label {
+            font-weight: bold;
+        }
+        
+        .stat-value {
+            font-family: monospace;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-running { background-color: #28a745; }
+        .status-crashed { background-color: #dc3545; }
+        .status-stopped { background-color: #6c757d; }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Rail Car Reinforcement Learning Dashboard</h1>
+            <p>Real-time monitoring and visualization</p>
+        </div>
+        
+        <div class="dashboard-grid">
+            <!-- Circuit Visualization -->
+            <div class="circuit-container">
+                <h3>Live Circuit View</h3>
+                <div style="position: relative;">
+                    <img src="/static/circuit.png" class="circuit-background" id="circuitImg" alt="Circuit Layout">
+                    <canvas class="circuit-overlay" id="circuitCanvas"></canvas>
+                </div>
+            </div>
+            
+            <!-- Real-time Stats -->
+            <div class="stats-panel">
+                <h3>Real-time Status</h3>
+                <div class="stat-item">
+                    <span class="stat-label">Status:</span>
+                    <span class="stat-value">
+                        <span class="status-indicator status-stopped" id="statusIndicator"></span>
+                        <span id="statusText">Stopped</span>
+                    </span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Voltage:</span>
+                    <span class="stat-value" id="voltageValue">0.0 V</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Rail Distance:</span>
+                    <span class="stat-value" id="railDistanceValue">0.0 cm</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Speed:</span>
+                    <span class="stat-value" id="speedValue">0.0 cm/s</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Episode:</span>
+                    <span class="stat-value" id="episodeValue">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Last Action:</span>
+                    <span class="stat-value" id="actionValue">0.0</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Charts -->
+        <div class="chart-container">
+            <h3>Voltage Over Time</h3>
+            <canvas id="voltageChart" width="400" height="200"></canvas>
+        </div>
+        
+        <div class="chart-container">
+            <h3>Training Progress</h3>
+            <canvas id="rewardChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Socket.IO
+        const socket = io();
+        
+        // Circuit visualization variables
+        let circuitBounds = null;
+        let canvas, ctx;
+        let carPosition = {x: 0, y: 0};
+        let carTangent = {x: 1, y: 0};
+        let carCrashed = false;
+        
+        // Chart variables
+        let voltageChart, rewardChart;
+        let voltageData = [];
+        let rewardData = [];
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCanvas();
+            initializeCharts();
+            fetchCircuitBounds();
+        });
+        
+        function initializeCanvas() {
+            canvas = document.getElementById('circuitCanvas');
+            ctx = canvas.getContext('2d');
+            
+            // Set canvas size to match image
+            const img = document.getElementById('circuitImg');
+            img.onload = function() {
+                canvas.width = img.clientWidth;
+                canvas.height = img.clientHeight;
+            };
+        }
+        
+        function initializeCharts() {
+            // Voltage chart
+            const voltageCtx = document.getElementById('voltageChart').getContext('2d');
+            voltageChart = new Chart(voltageCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Voltage (V)',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { display: false },
+                        y: { min: 0, max: 18 }
+                    },
+                    animation: false
+                }
+            });
+            
+            // Reward chart
+            const rewardCtx = document.getElementById('rewardChart').getContext('2d');
+            rewardChart = new Chart(rewardCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Reward',
+                        data: [],
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { display: false }
+                    },
+                    animation: false
+                }
+            });
+        }
+        
+        function fetchCircuitBounds() {
+            fetch('/circuit_bounds')
+                .then(response => response.json())
+                .then(data => {
+                    circuitBounds = data;
+                    console.log('Circuit bounds loaded:', circuitBounds);
+                });
+        }
+        
+        function worldToCanvas(worldX, worldY) {
+            if (!circuitBounds) return {x: 0, y: 0};
+            
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            
+            // Map world coordinates to canvas coordinates
+            const x = ((worldX - circuitBounds.min_x) / (circuitBounds.max_x - circuitBounds.min_x)) * canvasWidth;
+            const y = ((worldY - circuitBounds.min_y) / (circuitBounds.max_y - circuitBounds.min_y)) * canvasHeight;
+            
+            return {x: x, y: y};
+        }
+        
+        function drawCar() {
+            if (!ctx || !circuitBounds) return;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Convert world coordinates to canvas coordinates
+            const canvasPos = worldToCanvas(carPosition.x, carPosition.y);
+            
+            // Draw car
+            ctx.beginPath();
+            ctx.arc(canvasPos.x, canvasPos.y, 8, 0, 2 * Math.PI);
+            ctx.fillStyle = carCrashed ? '#dc3545' : '#007bff';
+            ctx.fill();
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Draw tangent vector
+            const tangentLength = 25;
+            const tangentEnd = worldToCanvas(
+                carPosition.x + carTangent.x * tangentLength,
+                carPosition.y + carTangent.y * tangentLength
+            );
+            
+            ctx.beginPath();
+            ctx.moveTo(canvasPos.x, canvasPos.y);
+            ctx.lineTo(tangentEnd.x, tangentEnd.y);
+            ctx.strokeStyle = carCrashed ? '#dc3545' : '#28a745';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+        
+        function updateStatus(status, crashed = false) {
+            const indicator = document.getElementById('statusIndicator');
+            const text = document.getElementById('statusText');
+            
+            if (crashed) {
+                indicator.className = 'status-indicator status-crashed';
+                text.textContent = 'Crashed';
+            } else if (status === 'running') {
+                indicator.className = 'status-indicator status-running';
+                text.textContent = 'Running';
+            } else {
+                indicator.className = 'status-indicator status-stopped';
+                text.textContent = 'Stopped';
+            }
+        }
+        
+        // Socket.IO event handlers
+        socket.on('car_position_update', function(data) {
+            carPosition = data.position;
+            carTangent = data.tangent;
+            carCrashed = data.crashed || false;
+            
+            drawCar();
+            updateStatus('running', carCrashed);
+            
+            // Update stats
+            document.getElementById('railDistanceValue').textContent = data.rail_distance.toFixed(1) + ' cm';
+            if (data.speed !== undefined) {
+                document.getElementById('speedValue').textContent = data.speed.toFixed(1) + ' cm/s';
+            }
+        });
+        
+        socket.on('sensor_update', function(data) {
+            document.getElementById('voltageValue').textContent = data.voltage.toFixed(2) + ' V';
+            
+            // Update voltage chart (limit to last 100 points)
+            const now = new Date();
+            voltageData.push({x: now, y: data.voltage});
+            if (voltageData.length > 100) {
+                voltageData.shift();
+            }
+            
+            voltageChart.data.datasets[0].data = voltageData;
+            voltageChart.update('none');
+        });
+        
+        socket.on('training_update', function(data) {
+            document.getElementById('episodeValue').textContent = data.episode || '0';
+            document.getElementById('actionValue').textContent = (data.action || 0).toFixed(2);
+            
+            if (data.reward !== undefined) {
+                // Update reward chart (limit to last 50 points)
+                rewardData.push(data.reward);
+                if (rewardData.length > 50) {
+                    rewardData.shift();
+                }
+                
+                rewardChart.data.labels = Array.from({length: rewardData.length}, (_, i) => i);
+                rewardChart.data.datasets[0].data = rewardData;
+                rewardChart.update('none');
+            }
+            
+            if (data.crashed) {
+                carCrashed = true;
+                updateStatus('running', true);
+            }
+        });
+        
+        socket.on('car_crashed', function(data) {
+            carCrashed = true;
+            updateStatus('running', true);
+            drawCar();
+        });
+        
+        // Handle connection status
+        socket.on('connect', function() {
+            console.log('Connected to server');
+        });
+        
+        socket.on('disconnect', function() {
+            console.log('Disconnected from server');
+            updateStatus('stopped');
+        });
+    </script>
+</body>
+</html>

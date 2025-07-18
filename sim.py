@@ -3,20 +3,23 @@ from circuit import SectionType as ST
 from circuit import *
 
 class RailCarSim:
-    def __init__(self, circuit, is_inside_rail):
+    def __init__(self, circuit, is_inside_rail, 
+                 acceleration_factor=8200.0,
+                 rolling_resistance=245.52, 
+                 max_grip_force=3000.00,
+                 turn_friction_coef=3783.64):
         self.circuit = circuit
         self.is_inside_rail = is_inside_rail
         self.rail_distance = 0.0
         self.speed = 0.0
 
 
-        self.max_speed = 475.0 
-        self.acceleration_factor = 4000.0
+        self.acceleration_factor = acceleration_factor
         # Note: La friction n'augmente pas avec la vitesse. Sur cette taille de systeme le frottement de l'air est negligeable.
         # Par contre il y a plus de friction dans les virages
-        self.rolling_resistance = 1480.0 # cm/s² (friction constante)
-        self.max_grip_force = 11000.0
-        self.turn_friction_coef = 3000.0
+        self.rolling_resistance = rolling_resistance # cm/s² (friction constante)
+        self.max_grip_force = max_grip_force
+        self.turn_friction_coef = turn_friction_coef
 
 
     def step(self, force, dt = 1/20):
@@ -42,8 +45,6 @@ class RailCarSim:
             self.speed -= (self.rolling_resistance + turn_friction)* dt
             self.speed = max(0, self.speed)
 
-
-        self.speed = max(0, min(self.speed, self.max_speed))
 
         self.rail_distance += self.speed * dt
         
