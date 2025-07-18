@@ -99,8 +99,8 @@ def main():
         circuit.draw()
 
         # Voiture intérieure
-        #draw_car(state_inside['position'], raylib.RED)
-        #draw_tangent(state_inside['position'], state_inside['tangent'], raylib.MAROON)
+        draw_car(state_inside['position'], raylib.RED)
+        draw_tangent(state_inside['position'], state_inside['tangent'], raylib.MAROON)
         
         # Voiture extérieure  
         draw_car(state_outside['position'], raylib.BLUE)

@@ -75,7 +75,7 @@ def get_car_position():
             
             # Send to main server for dashboard
             try:
-                requests.post("http://localhost:5000/car_position", 
+                requests.post("http://10.135.180.56:5000/car_position", 
                             json=response_data, timeout=0.1)
             except:
                 pass
