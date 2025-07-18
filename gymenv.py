@@ -143,9 +143,19 @@ class RailCarRealEnv(gym.Env):
             return observation, reward, terminated, truncated, info
 
         except requests.exceptions.RequestException as e:
-            print(f"Erreur de connextion: {e}")
-            observation = np.array([0, 0, 0, 0], dtype=np.float32)
-            return observation, 0, True, False, {}
+            print(f"[RailCarRealEnv] Network error: {e}")
+            # Return a dummy state to avoid KeyError
+            dummy_state = {
+                'rail_distance': 0,
+                'nb_turns': 0,
+                'voltage': 0,
+                'angle_10cm': 0,
+                'angle_30cm': 0,
+                'angle_50cm': 0,
+                'duty_cycle': 0,
+            }
+            observation = self._state_to_obs(dummy_state)
+            return observation, 0, True, False, {'state': dummy_state}
 
     def _state_to_obs(self, state):
         return np.array([
